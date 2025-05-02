@@ -191,12 +191,6 @@ class CartridgeController extends Module {
       when (io.enable) {
         state := State.RamStage0
         reg_nCS2 := 0.U
-        // XXX: nRD/nWR are supposed to go low on the *falling* edge of the next cycle
-        when (ramTarget.write) {
-          reg_nWR := 0.U
-        } .otherwise {
-          reg_nRD := 0.U
-        }
         currentAddress := ramTarget.address
         currentIsWrite := ramTarget.write
       }
@@ -317,7 +311,7 @@ class CartridgeController extends Module {
 
       when (io.enable) {
         state := State.RamStage1
-        waitCounter := VecInit(2.U, 1.U, 0.U, 6.U)(regWaitControl.sram)
+        waitCounter := VecInit(3.U, 2.U, 1.U, 7.U)(regWaitControl.sram)
       }
     }
     is (State.RamStage1) {
@@ -331,6 +325,14 @@ class CartridgeController extends Module {
       io.cartridge.reqEnd := waitCounter === 0.U
       when (io.enable) {
         waitCounter := waitCounter - 1.U
+        // XXX: nRD/nWR are supposed to go low on the *falling* edge of the next cycle
+        when (waitCounter === VecInit(2.U, 1.U, 0.U, 6.U)(regWaitControl.sram)) {
+          when (ramTarget.write) {
+            reg_nWR := 0.U
+          } .otherwise {
+            reg_nRD := 0.U
+          }
+        }
         when (waitCounter === 0.U) {
           state := State.RamStage2
           regReadData := io.cartridge.AHiIn
